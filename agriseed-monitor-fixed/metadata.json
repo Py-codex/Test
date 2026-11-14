@@ -1,0 +1,6 @@
+{
+  "name": "AgriSeed Monitor",
+  "description": "Standalone smart seed storage chamber monitor and controller with automatic temperature hysteresis, PWM fan control, historical telemetry charts, CSV export, and ESP32 firmware generator.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

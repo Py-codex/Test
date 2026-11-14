@@ -1,0 +1,815 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AgriSeed Monitor</title>
+    <meta
+      name="description"
+      content="Standalone smart seed storage chamber monitor and controller with automatic temperature hysteresis, PWM fan control, historical telemetry charts, CSV export, and ESP32 firmware generator."
+    />
+    <meta property="og:title" content="AgriSeed Monitor" />
+    <meta
+      property="og:description"
+      content="Standalone smart seed storage chamber monitor and controller with automatic temperature hysteresis, PWM fan control, historical telemetry charts, CSV export, and ESP32 firmware generator."
+    />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <!-- Compact Mobile Header (<= 54px, under 15% sticky viewport budget) -->
+    <header class="mobile-topbar">
+      <span class="brand-wordmark brand-wordmark-sm">AgriSeed Monitor</span>
+      <button
+        type="button"
+        id="mobileMenuBtn"
+        class="btn btn-secondary btn-sm"
+        aria-expanded="false"
+        aria-controls="appSidebar"
+      >
+        Menu
+      </button>
+    </header>
+
+    <div class="app-layout">
+      <!-- Left Sidebar Navigation -->
+      <aside id="appSidebar" class="sidebar" aria-label="Main Navigation">
+        <div>
+          <div class="sidebar-brand">
+            <h1 class="brand-wordmark">AgriSeed Monitor</h1>
+          </div>
+
+          <ul class="nav-list">
+            <li>
+              <button
+                type="button"
+                class="nav-item-btn active"
+                data-section="overview"
+              >
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                  <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                  <rect x="3" y="14" width="7" height="7" rx="1.5" />
+                  <rect x="14" y="14" width="7" height="7" rx="1.5" />
+                </svg>
+                <span>Dashboard Overview</span>
+              </button>
+            </li>
+            <li>
+              <button
+                type="button"
+                class="nav-item-btn"
+                data-section="wifi"
+              >
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+                  <path d="M1.42 9a16 16 0 0 1 21.16 0" />
+                  <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+                  <circle cx="12" cy="20" r="1" fill="currentColor" />
+                </svg>
+                <span>WiFi &amp; Simulator</span>
+              </button>
+            </li>
+            <li>
+              <button
+                type="button"
+                class="nav-item-btn"
+                data-section="batches"
+              >
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" />
+                  <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" />
+                </svg>
+                <span>Seed Selection</span>
+              </button>
+            </li>
+            <li>
+              <button
+                type="button"
+                class="nav-item-btn"
+                data-section="guide"
+              >
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                </svg>
+                <span>Seed Guide</span>
+              </button>
+            </li>
+            <li>
+              <button
+                type="button"
+                class="nav-item-btn"
+                data-section="history"
+              >
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="8" y1="13" x2="16" y2="13" />
+                  <line x1="8" y1="17" x2="16" y2="17" />
+                </svg>
+                <span>Storage Logs</span>
+              </button>
+            </li>
+          </ul>
+        </div>
+
+        <div class="sidebar-footer">
+          <div>
+            <label for="sidebarChamberSelect" class="form-label form-label-xs">Active Chamber</label>
+            <select id="sidebarChamberSelect" class="form-select form-select-compact"></select>
+          </div>
+          <div class="sidebar-actions">
+            <button type="button" id="resetDemoDataBtn" class="btn btn-secondary btn-sm btn-block">
+              Reset Demo State
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Workspace -->
+      <main class="main-workspace">
+        <!-- 4-State Chamber Health Strip -->
+        <section id="chamberStatusStrip" class="status-strip grey" aria-live="polite">
+          <div class="status-strip-main">
+            <span id="statusTitle" class="status-strip-title">Initialising Chamber Controller…</span>
+            <span aria-hidden="true">·</span>
+            <span id="statusDetail" class="status-strip-detail">Loading local storage state</span>
+          </div>
+          <div class="status-strip-actions">
+            <span id="simQuickSummary" class="meta-line tabular"></span>
+            <button type="button" id="quickSimToggleBtn" class="btn btn-secondary btn-sm">
+              Sim Settings
+            </button>
+          </div>
+        </section>
+
+        <div id="globalNotice" class="feedback-banner hidden" role="status"></div>
+
+        <!-- ================================================================
+             SECTION 1: DASHBOARD OVERVIEW
+             ================================================================ -->
+        <div id="section-overview" class="workspace-section">
+          <div class="overview-top-grid">
+            <!-- Top-Left: Live Status -->
+            <section class="panel" aria-labelledby="liveStatusHeading">
+              <div class="panel-header">
+                <h2 id="liveStatusHeading" class="panel-title">Live Status</h2>
+                <span id="deviceFreshnessText" class="meta-line tabular">Checking link…</span>
+              </div>
+
+              <div class="live-metrics-grid">
+                <!-- Cell 1: Current Temp & Cooling Relay -->
+                <div id="cellTemp" class="metric-cell">
+                  <div class="metric-label">Current Temp</div>
+                  <div id="valTemp" class="metric-value">—</div>
+                  <div id="subTemp" class="metric-sub tabular">
+                    Allowed — · Target — · Cooling —
+                  </div>
+                </div>
+
+                <!-- Cell 2: Relative Humidity -->
+                <div id="cellHumidity" class="metric-cell">
+                  <div class="metric-label">Relative Humidity</div>
+                  <div id="valHumidity" class="metric-value">—</div>
+                  <div id="subHumidity" class="metric-sub tabular">
+                    Allowed — RH
+                  </div>
+                </div>
+
+                <!-- Cell 3: Fan Speed (% Commanded vs Measured RPM Radial Gauge) -->
+                <div id="cellFan" class="metric-cell">
+                  <div class="metric-label">Fan Speed</div>
+                  <div class="fan-cell-row">
+                    <div>
+                      <div id="valFanPrimary" class="metric-value metric-value-md">—</div>
+                      <div id="subFan" class="metric-sub tabular">
+                        Commanded: —%
+                      </div>
+                    </div>
+                    <div class="rpm-gauge" aria-hidden="true">
+                      <svg viewBox="0 0 64 64">
+                        <circle class="rpm-gauge-track" cx="32" cy="32" r="25" />
+                        <circle
+                          id="rpmGaugeArc"
+                          class="rpm-gauge-bar"
+                          cx="32"
+                          cy="32"
+                          r="25"
+                          stroke-dasharray="157.08"
+                          stroke-dashoffset="157.08"
+                        />
+                      </svg>
+                      <div id="rpmGaugeCenter" class="rpm-gauge-label tabular">PWM</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Cell 4: Live Clock & Active Seed Batch Horizon -->
+                <div id="cellClock" class="metric-cell">
+                  <div class="metric-label">Live Clock</div>
+                  <div id="valLiveClock" class="metric-value metric-value-clock">
+                    --:--:--
+                  </div>
+                  <div id="subBatchClock" class="metric-sub tabular">
+                    Batch: Loading…
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Top-Right: Control Panel -->
+            <section class="panel" aria-labelledby="controlPanelHeading">
+              <div class="panel-header">
+                <h2 id="controlPanelHeading" class="panel-title">Control Panel</h2>
+                <div class="inline-btn-group">
+                  <button type="button" id="modeAutoBtn" class="btn btn-primary btn-sm">
+                    Auto Mode
+                  </button>
+                  <button type="button" id="modeManualBtn" class="btn btn-secondary btn-sm">
+                    Manual Fan
+                  </button>
+                </div>
+              </div>
+
+              <form id="controlForm" novalidate>
+                <div class="control-grid">
+                  <!-- Target Temperature Slider -->
+                  <div>
+                    <label for="sliderTargetTemp" class="form-label">Target Temperature</label>
+                    <div class="slider-row">
+                      <input
+                        id="sliderTargetTemp"
+                        type="range"
+                        class="agri-slider"
+                        min="4"
+                        max="30"
+                        step="0.5"
+                        value="17.5"
+                      />
+                      <span id="readoutTargetTemp" class="slider-readout">17.5°C</span>
+                    </div>
+                  </div>
+
+                  <!-- Seed Profile Quick Preset -->
+                  <div>
+                    <label for="presetSeedSelect" class="form-label">Seed Type (Preset Envelope)</label>
+                    <select id="presetSeedSelect" class="form-select"></select>
+                  </div>
+
+                  <!-- Fan Control Slider (Manual % when in Manual, or Max % in Auto) -->
+                  <div>
+                    <label id="sliderFanLabel" for="sliderFanControl" class="form-label">
+                      Max Circulation Fan (%)
+                    </label>
+                    <div class="slider-row">
+                      <input
+                        id="sliderFanControl"
+                        type="range"
+                        class="agri-slider"
+                        min="0"
+                        max="100"
+                        step="5"
+                        value="85"
+                      />
+                      <span id="readoutFanControl" class="slider-readout">85%</span>
+                    </div>
+                  </div>
+
+                  <!-- Active Batch Horizon Readout -->
+                  <div>
+                    <label class="form-label">Active Batch Horizon</label>
+                    <div class="inline-horizon-row">
+                      <div id="activeBatchHorizonBox" class="slider-readout horizon-readout">
+                        —
+                      </div>
+                      <button
+                        type="button"
+                        id="manageBatchJumpBtn"
+                        class="btn btn-secondary btn-sm"
+                      >
+                        Batches
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Operating Bounds & Cooling Hysteresis -->
+                <div class="bounds-section">
+                  <div class="compact-bounds-grid">
+                    <div class="mini-field">
+                      <label for="inputTempMin">Min Limit (°C)</label>
+                      <input id="inputTempMin" type="number" step="0.5" min="2" max="34" value="15.0" />
+                    </div>
+                    <div class="mini-field">
+                      <label for="inputTempMax">Max Limit (°C)</label>
+                      <input id="inputTempMax" type="number" step="0.5" min="3" max="35" value="20.0" />
+                    </div>
+                    <div class="mini-field">
+                      <label for="inputCoolOff">Cool OFF (°C)</label>
+                      <input id="inputCoolOff" type="number" step="0.2" min="2" max="34" value="16.8" />
+                    </div>
+                    <div class="mini-field">
+                      <label for="inputCoolOn">Cool ON (°C)</label>
+                      <input id="inputCoolOn" type="number" step="0.2" min="2.6" max="35" value="18.2" />
+                    </div>
+                  </div>
+
+                  <div class="compact-bounds-grid bounds-grid-spaced">
+                    <div class="mini-field">
+                      <label for="inputFanMin">Fan Min (%)</label>
+                      <input id="inputFanMin" type="number" step="5" min="0" max="100" value="25" />
+                    </div>
+                    <div class="mini-field">
+                      <label for="inputFanMax">Fan Max (%)</label>
+                      <input id="inputFanMax" type="number" step="5" min="0" max="100" value="85" />
+                    </div>
+                    <div class="mini-field">
+                      <label for="inputManualFan">Manual Fan (%)</label>
+                      <input id="inputManualFan" type="number" step="5" min="0" max="100" value="45" />
+                    </div>
+                    <div class="mini-field">
+                      <label for="inputManualTimeout">Override (min)</label>
+                      <input id="inputManualTimeout" type="number" step="5" min="1" max="240" value="30" />
+                    </div>
+                  </div>
+                </div>
+
+                <div class="reconcile-bar">
+                  <div>
+                    <div id="configSyncText" class="meta-line tabular sync-status-line">
+                      Requested vs Device Config: Checking…
+                    </div>
+                    <div id="manualExpiryNote" class="meta-line tabular">
+                      Prototype hysteresis + PWM control — verify settings per crop
+                    </div>
+                  </div>
+                  <div class="inline-btn-group">
+                    <button type="button" id="returnAutoBtn" class="btn btn-secondary btn-sm hidden">
+                      Return to Auto
+                    </button>
+                    <button type="submit" id="saveConfigBtn" class="btn btn-primary btn-sm">
+                      Save Settings
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </section>
+          </div>
+
+          <!-- Active Alerts Panel (Shown prominently when unacknowledged alerts exist) -->
+          <section id="activeAlertsPanel" class="panel hidden" aria-labelledby="alertsHeading">
+            <div class="panel-header">
+              <h2 id="alertsHeading" class="panel-title">Active Chamber Alerts</h2>
+              <button type="button" id="viewAllAlertsJumpBtn" class="link-action-btn">
+                View Full Alert Log
+              </button>
+            </div>
+            <div id="activeAlertsList" class="alert-list"></div>
+          </section>
+
+          <!-- Middle: Real-time Dual-Axis Graph -->
+          <section class="panel" aria-labelledby="realtimeGraphHeading">
+            <div class="panel-header">
+              <h2 id="realtimeGraphHeading" class="panel-title">Real-Time Telemetry Graph</h2>
+              <div class="chart-legend-inline">
+                <span><span class="legend-swatch swatch-temp"></span>Temperature (°C)</span>
+                <span><span class="legend-swatch swatch-rh"></span>Humidity (%)</span>
+              </div>
+            </div>
+            <div class="chart-wrapper" id="liveDualChartWrap">
+              <canvas id="liveDualChart" aria-label="Live Temperature and Humidity Chart"></canvas>
+              <div id="liveChartTooltip" class="chart-tooltip hidden"></div>
+            </div>
+          </section>
+
+          <!-- Bottom: Recent Storage History Log -->
+          <section class="panel" aria-labelledby="recentLogsHeading">
+            <div class="panel-header">
+              <h2 id="recentLogsHeading" class="panel-title">Recent Storage Telemetry</h2>
+              <div class="inline-btn-group">
+                <button type="button" id="jumpToHistoryBtn" class="btn btn-secondary btn-sm">
+                  Full 24h / 7d / 30d History &amp; CSV
+                </button>
+              </div>
+            </div>
+
+            <div class="table-scroll">
+              <table class="agri-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Seed Name</th>
+                    <th class="num">Temperature (°C)</th>
+                    <th class="num">Humidity (%)</th>
+                    <th class="num">Fan Cmd (%)</th>
+                    <th class="num">Fan Speed (RPM)</th>
+                    <th>Cooling</th>
+                    <th>Source</th>
+                  </tr>
+                </thead>
+                <tbody id="recentLogsBody">
+                  <tr>
+                    <td colspan="9" class="empty-table-cell">
+                      Loading recent telemetry…
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <!-- ================================================================
+             SECTION 2: WIFI CONNECTION, SIMULATOR & ESP32 FIRMWARE SETUP
+             ================================================================ -->
+        <div id="section-wifi" class="workspace-section hidden">
+          <!-- Built-In Simulator Control Console -->
+          <section class="panel" id="simulatorPanel">
+            <div class="panel-header">
+              <h2 class="panel-title">Hardware-Free ESP32 Simulator</h2>
+              <span id="simStateLabel" class="meta-line tabular">Checking simulator…</span>
+            </div>
+            <p class="meta-line panel-intro">
+              Simulates an ESP32 controller posting readings every 5 seconds with realistic thermal drift, compressor hysteresis, minimum ON/OFF rest protection, and PWM fan ramping. All simulated packets are explicitly marked as <strong>Simulated</strong>.
+            </p>
+
+            <div class="control-grid align-end">
+              <div>
+                <label for="simScenarioSelect" class="form-label">Test Scenario</label>
+                <select id="simScenarioSelect" class="form-select">
+                  <option value="normal">Normal Regulation (Auto Hysteresis + Fan Ramp)</option>
+                  <option value="high_temp">Simulate High Temperature Breach (&gt; Max Limit)</option>
+                  <option value="low_temp">Simulate Low Temperature Breach (&lt; Min Limit)</option>
+                  <option value="high_humidity">Simulate High Humidity Breach (&gt; Max RH)</option>
+                  <option value="sensor_fault">Simulate DHT22 Sensor Disconnection / Fault</option>
+                  <option value="no_rpm">Simulate 2-Wire DC Fan (RPM Feedback Unavailable)</option>
+                  <option value="offline">Simulate Wi-Fi / Laptop Disconnection (Stale Detection)</option>
+                </select>
+              </div>
+              <div class="sim-btn-row">
+                <button type="button" id="simStartBtn" class="btn btn-primary">Start Simulator</button>
+                <button type="button" id="simStopBtn" class="btn btn-secondary">Pause Simulator</button>
+                <button type="button" id="simStepBtn" class="btn btn-secondary">Send Reading Now</button>
+              </div>
+            </div>
+          </section>
+
+          <!-- Local Network Discovery & ESP32 Firmware -->
+          <section class="panel">
+            <div class="panel-header">
+              <h2 class="panel-title">Local Wi-Fi Connection &amp; ESP32 Firmware</h2>
+              <button type="button" id="downloadFirmwareBtn" class="btn btn-primary btn-sm">
+                Download ESP32 Sketch (seed_chamber.ino)
+              </button>
+            </div>
+
+            <div class="control-grid">
+              <div>
+                <div class="form-label">Active Browser / Host Endpoint</div>
+                <div id="detectedLanUrl" class="code-block">Detecting host address…</div>
+                <p class="meta-line meta-spaced">
+                  Update <code>SERVER_BASE</code>, <code>WIFI_SSID</code>, and <code>DEVICE_KEY</code> inside the downloaded Arduino sketch before flashing your ESP32-WROOM-32 controller.
+                </p>
+              </div>
+
+              <div>
+                <div class="form-label">ESP32 GPIO Pinout &amp; Safety Wiring</div>
+                <div class="code-block">GPIO 4  : DHT22 Data (+ 4.7k–10k pull-up to 3.3V)
+GPIO 25 : 25 kHz PWM Fan -> MOSFET / 4-wire PWM pin
+GPIO 26 : Cooling Relay  -> Opto-isolated SSR / contactor
+GPIO 27 : Optional Fan Tachometer (3.3V open-collector)</div>
+              </div>
+            </div>
+
+            <div class="control-grid grid-top-gap">
+              <div>
+                <div class="form-label">Requested Controller Configuration</div>
+                <pre id="requestedConfigPre" class="code-block">—</pre>
+              </div>
+              <div>
+                <div class="form-label">ESP32 Acknowledged Configuration</div>
+                <pre id="ackConfigPre" class="code-block">Waiting for device acknowledgement…</pre>
+              </div>
+            </div>
+          </section>
+
+          <!-- Direct HTTP Packet Injector / External ESP32 Bridge -->
+          <section class="panel">
+            <div class="panel-header">
+              <h2 class="panel-title">Register Additional Seed Chamber</h2>
+              <span class="meta-line">Add isolated storage chambers to monitor multiple vaults</span>
+            </div>
+            <form id="registerDeviceForm" class="control-grid" novalidate>
+              <div>
+                <label for="newDeviceId" class="form-label">Device ID (matches firmware)</label>
+                <input id="newDeviceId" type="text" class="form-input" placeholder="chamber-02" required />
+              </div>
+              <div>
+                <label for="newDeviceName" class="form-label">Chamber Name</label>
+                <input id="newDeviceName" type="text" class="form-input" placeholder="Secondary Pulse Vault" required />
+              </div>
+              <div>
+                <label for="newDeviceKey" class="form-label">Shared Device Key (min 8 chars)</label>
+                <input id="newDeviceKey" type="password" class="form-input" placeholder="secret-local-device-key" required />
+              </div>
+              <div class="align-end-flex">
+                <button type="submit" class="btn btn-secondary">Register Chamber</button>
+              </div>
+            </form>
+          </section>
+        </div>
+
+        <!-- ================================================================
+             SECTION 3: SEED SELECTION (BATCH MANAGEMENT)
+             ================================================================ -->
+        <div id="section-batches" class="workspace-section hidden">
+          <section class="panel">
+            <div class="panel-header">
+              <h2 class="panel-title">Active Chamber Seed Batch</h2>
+              <span id="activeBatchChamberTag" class="meta-line tabular"></span>
+            </div>
+            <div id="activeBatchContainer">
+              <p class="meta-line">Loading active batch…</p>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <h2 class="panel-title">Start New Seed Batch</h2>
+              <span class="meta-line">One active batch per physical chamber</span>
+            </div>
+            <form id="createBatchForm" novalidate>
+              <div class="control-grid">
+                <div class="form-group">
+                  <label for="batchSeedProfile" class="form-label">Seed Profile</label>
+                  <select id="batchSeedProfile" class="form-select" required></select>
+                </div>
+                <div class="form-group">
+                  <label for="batchLabel" class="form-label">Batch Label / Lot Code</label>
+                  <input
+                    id="batchLabel"
+                    type="text"
+                    class="form-input"
+                    placeholder="e.g. Kharif Maize Lot M-204"
+                    required
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="batchQty" class="form-label">Quantity Stored (kg)</label>
+                  <input
+                    id="batchQty"
+                    type="number"
+                    step="0.5"
+                    min="0.5"
+                    max="50000"
+                    value="50"
+                    class="form-input tabular"
+                    required
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="batchPlannedDays" class="form-label">Planned Storage Days</label>
+                  <input
+                    id="batchPlannedDays"
+                    type="number"
+                    min="1"
+                    max="3650"
+                    value="360"
+                    class="form-input tabular"
+                    required
+                  />
+                </div>
+              </div>
+
+              <label class="checkbox-row">
+                <input id="batchApplyTemps" type="checkbox" checked />
+                <span>Update chamber temperature operating range to match this seed profile</span>
+              </label>
+
+              <button type="submit" id="createBatchBtn" class="btn btn-primary">
+                Start Seed Batch
+              </button>
+            </form>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <h2 class="panel-title">Batch Archive</h2>
+              <span class="meta-line">Active and closed seed lots tracked in this workspace</span>
+            </div>
+            <div class="table-scroll">
+              <table class="agri-table">
+                <thead>
+                  <tr>
+                    <th>Batch Label</th>
+                    <th>Seed Profile</th>
+                    <th>Chamber</th>
+                    <th class="num">Qty (kg)</th>
+                    <th>Started (local)</th>
+                    <th class="num">Days Stored</th>
+                    <th class="num">Days Left</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="batchesTableBody">
+                  <tr>
+                    <td colspan="8" class="empty-table-cell">Loading batches…</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <!-- ================================================================
+             SECTION 4: SEED GUIDE (PROVISIONAL DEMO PROFILES)
+             ================================================================ -->
+        <div id="section-guide" class="workspace-section hidden">
+          <div class="feedback-banner warning">
+            <strong>Provisional Demonstration Values Only:</strong> All starter seed profiles below are unverified prototype values. Always verify target seed moisture content, temperature, and relative humidity against official <strong>ICAR</strong>, <strong>NBPGR</strong>, or <strong>FAO</strong> standards before storing real seed stock. Do not assume identical cooling or fan speeds suit every crop.
+          </div>
+
+          <section class="panel">
+            <div class="panel-header">
+              <h2 class="panel-title">Starter Seed Storage Profiles</h2>
+              <span class="meta-line">Provisional reference envelopes</span>
+            </div>
+            <div id="seedGuideGrid" class="seed-guide-grid"></div>
+          </section>
+        </div>
+
+        <!-- ================================================================
+             SECTION 5: STORAGE LOGS, HISTORICAL CHARTS, CSV & ALERTS
+             ================================================================ -->
+        <div id="section-history" class="workspace-section hidden">
+          <!-- Toolbar: Range Filter + CSV Export -->
+          <section class="panel panel-compact">
+            <div class="history-toolbar">
+              <div>
+                <h2 class="panel-title">Historical Telemetry &amp; Audit Logs</h2>
+                <div id="historyMetaSubtitle" class="meta-line tabular">
+                  Downsampled charts + unmodified raw telemetry readings (50 rows per page)
+                </div>
+              </div>
+
+              <div class="inline-btn-group">
+                <button type="button" class="btn btn-primary btn-sm range-btn" data-range="24h">
+                  24 Hours
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm range-btn" data-range="7d">
+                  7 Days
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm range-btn" data-range="30d">
+                  30 Days
+                </button>
+                <button type="button" id="exportCsvBtn" class="btn btn-secondary btn-sm">
+                  Download CSV
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <!-- Summary KPI Strip (Min, Max, Avg, Sample Count) -->
+          <section class="kpi-strip" aria-label="Summary Statistics">
+            <div class="kpi-box">
+              <div class="kpi-box-label">Total Samples</div>
+              <div id="statSamples" class="kpi-box-val">0</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-box-label">Temperature (Min / Avg / Max)</div>
+              <div id="statTempSummary" class="kpi-box-val">—</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-box-label">Humidity (Min / Avg / Max)</div>
+              <div id="statRhSummary" class="kpi-box-val">—</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-box-label">Avg Fan PWM / Cooling Duty</div>
+              <div id="statFanCoolSummary" class="kpi-box-val">—</div>
+            </div>
+          </section>
+
+          <!-- Chart 1: Temperature & Humidity History -->
+          <section class="panel">
+            <div class="panel-header">
+              <h3 class="panel-title">Temperature &amp; Relative Humidity History</h3>
+              <div class="chart-legend-inline">
+                <span><span class="legend-swatch swatch-temp"></span>Temp (°C)</span>
+                <span><span class="legend-swatch swatch-rh"></span>Humidity (%)</span>
+              </div>
+            </div>
+            <div class="chart-wrapper" id="historyClimateChartWrap">
+              <canvas id="historyClimateChart" aria-label="Historical Temperature and Humidity Chart"></canvas>
+              <div id="historyClimateTooltip" class="chart-tooltip hidden"></div>
+            </div>
+          </section>
+
+          <!-- Chart 2: Fan-Speed & Cooling-State History -->
+          <section class="panel">
+            <div class="panel-header">
+              <h3 class="panel-title">Fan Speed (%) &amp; Cooling Duty History</h3>
+              <div class="chart-legend-inline">
+                <span><span class="legend-swatch swatch-fan"></span>Commanded Fan (%)</span>
+                <span><span class="legend-swatch swatch-cool"></span>Cooling Duty (%)</span>
+              </div>
+            </div>
+            <div class="chart-wrapper" id="historyActuatorChartWrap">
+              <canvas id="historyActuatorChart" aria-label="Historical Fan Speed and Cooling Duty Chart"></canvas>
+              <div id="historyActuatorTooltip" class="chart-tooltip hidden"></div>
+            </div>
+          </section>
+
+          <!-- Paginated Raw Readings (50 rows per page) -->
+          <section class="panel">
+            <div class="panel-header">
+              <h3 class="panel-title">Raw Sensor Readings (50 per page)</h3>
+              <span id="paginationInfoTop" class="meta-line tabular">Page 1 of 1</span>
+            </div>
+
+            <div class="table-scroll">
+              <table class="agri-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Batch / Seed</th>
+                    <th class="num">Temp (°C)</th>
+                    <th class="num">Humidity (%)</th>
+                    <th class="num">Fan Cmd (%)</th>
+                    <th class="num">Measured RPM</th>
+                    <th>Cooling</th>
+                    <th>Sensor</th>
+                    <th>Source</th>
+                  </tr>
+                </thead>
+                <tbody id="historyTableBody">
+                  <tr>
+                    <td colspan="10" class="empty-table-cell">Loading readings…</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="pagination-bar">
+              <span id="paginationSummary" class="meta-line tabular">Showing 0 rows</span>
+              <div class="inline-btn-group">
+                <button type="button" id="prevPageBtn" class="btn btn-secondary btn-sm" disabled>
+                  Previous 50
+                </button>
+                <button type="button" id="nextPageBtn" class="btn btn-secondary btn-sm" disabled>
+                  Next 50
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <!-- Alerts & Cooldown History -->
+          <section id="alertsHistorySection" class="panel">
+            <div class="panel-header">
+              <h3 class="panel-title">Alert History &amp; Acknowledgements</h3>
+              <div class="inline-btn-group">
+                <button type="button" id="filterAllAlertsBtn" class="btn btn-primary btn-sm">
+                  All Alerts
+                </button>
+                <button type="button" id="filterActiveAlertsBtn" class="btn btn-secondary btn-sm">
+                  Unacknowledged Only
+                </button>
+              </div>
+            </div>
+
+            <div class="table-scroll">
+              <table class="agri-table">
+                <thead>
+                  <tr>
+                    <th>Created</th>
+                    <th>Chamber</th>
+                    <th>Kind</th>
+                    <th>Message</th>
+                    <th>Recovery</th>
+                    <th>Status / Action</th>
+                  </tr>
+                </thead>
+                <tbody id="alertsHistoryBody">
+                  <tr>
+                    <td colspan="6" class="empty-table-cell">Loading alerts…</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script type="module" src="./script.js"></script>
+  </body>
+</html>
